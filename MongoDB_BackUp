@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+MONGODB_LIST="test weibo2"
+BACKUP_DIR=~/tmp
+HOST=127.0.0.1:27017
+USERNAME=""
+PASSWORD=""
+MONGODUMP_BIN=$(which mongodump)
+TAR_BIN=$(which tar)
+
+function Mongo_Backup {
+    DATE=`date "+%F-%H-%M-%S"`
+    TAR_NAME="$1-$DATE"
+    OUTPUT_DIR="$BACKUP_DIR/$1"
+    mkdir -p $OUTPUT_DIR/dump
+    if [ $1 = "All" ];then
+        if [ "$USERNAME" = "" ] && [ "$PASSWORD" = "" ];then
+            $MONGODUMP_BIN -h$HOST -o$OUTPUT_DIR/dump
+        else
+            $MONGODUMP_BIN -h$HOST -u$USERNAME -p$PASSWORD -o$OUTPUT_DIR/dump
+        fi
+    else
+        if [ "$USERNAME" = "" ] && [ "$PASSWORD" = "" ];then
+            $MONGODUMP_BIN -h$HOST -d$1 -o$OUTPUT_DIR/dump
+        else
+            $MONGODUMP_BIN -h$HOST -u$USERNAME -p$PASSWORD -d$1 -o$OUTPUT_DIR/dump
+        fi
+    fi
+    echo ----------Database "$1" is backing up----------
+    tar -cvzPf $OUTPUT_DIR/$TAR_NAME".tar" $OUTPUT_DIR/dump
+    echo $DATE [$1] backup --size `du -s --block-size=m $OUTPUT_DIR/$TAR_NAME".tar"` >>$BACKUP_DIR/MongoDB_backup.log
+    rm -rf $OUTPUT_DIR/dump/
+}
+
+if [ $# = 0 ];then
+    if [[ $MONGODB_LIST = "" ]];then
+        MONGO_DB="All"
+        Mongo_Backup $MONGO_DB
+    else
+        for MONGO_DB in $MONGODB_LIST;do
+            Mongo_Backup $MONGO_DB
+        done
+    fi
+else
+    for MONGO_DB in $*;do
+        Mongo_Backup $MONGO_DB
+    done
+fi
